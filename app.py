@@ -41,8 +41,10 @@ if uploaded_files:
     with st.spinner('파일별로 데이터를 처리 중입니다...'):
         try:
             for uploaded_file in uploaded_files:
-                # [수정] 파일명에서 ".pdf"와 "자산내역_"을 모두 제거
-                sheet_name = uploaded_file.name.replace(".pdf", "").replace("자산내역_", "")[:30]
+                # [수정 포인트] 파일명에서 확장자(.pdf)만 제거하고 파일명을 그대로 시트명으로 사용
+                # 엑셀 시트 이름 규칙: 최대 31자, /, \, ?, *, :, [, ] 사용불가
+                raw_name = uploaded_file.name.replace(".pdf", "").replace(".PDF", "")
+                sheet_name = re.sub(r'[\\/*?:\[\]]', '', raw_name)[:31]
                 
                 with pdfplumber.open(uploaded_file) as pdf:
                     file_rows = []
@@ -88,7 +90,7 @@ if uploaded_files:
                     
                     final_df = pd.concat([df, pd.DataFrame([summary_row])], ignore_index=True)
                     
-                    # [수정] 천 단위 콤마 표기 적용 (계산 완료 후 변환)
+                    # 천 단위 콤마 표기 적용
                     for col in calc_cols:
                         final_df[col] = final_df[col].apply(lambda x: format(int(x), ',') if str(x).replace('.0','').isdigit() else x)
                     
@@ -128,7 +130,7 @@ if uploaded_files:
                             part = MIMEBase('application', "octet-stream")
                             part.set_payload(excel_data)
                             encoders.encode_base64(part)
-                            part.add_header('Content-Disposition', 'attachment; filename="multi_sheet_report.xlsx"')
+                            part.add_header('Content-Disposition', 'attachment; filename="asset_report_combined.xlsx"')
                             msg.attach(part)
 
                             server = smtplib.SMTP('smtp.gmail.com', 587)
